@@ -554,6 +554,38 @@ class MiniBrowser(QMainWindow):
             else:
                 self.close_tab(self.tab_bar.currentIndex())
 
+    def add_new_tab_for_link(self):
+        """
+        Создаёт новую вкладку для ссылки, запрошенной сайтом.
+        Возвращает QWebEnginePage новой вкладки.
+        """
+        browser = QWebEngineView()
+        page = MicroPage(self.profile, self.pw_manager, browser)
+        browser.setPage(page)
+        
+        # Подключаем те же сигналы, что и в обычном add_new_tab
+        page.permissionRequested.connect(self.handle_permission)
+        page.pageFullScreenRequested.connect(self.on_page_fullscreen)
+        
+        # Добавляем вкладку в интерфейс
+        i = self.tab_bar.addTab("Загрузка…")
+        self.stack.addWidget(browser)
+        self.tab_bar.setCurrentIndex(i)
+        
+        # Подключаем обновление заголовка и URL
+        browser.titleChanged.connect(
+            lambda t, b=browser: self.update_tab_title(t, b))
+        browser.urlChanged.connect(
+            lambda u, b=browser: self.update_urlbar(u, b))
+        browser.urlChanged.connect(
+            lambda u, b=browser: self._update_nav_buttons(b))
+        browser.urlChanged.connect(
+            lambda u, b=browser: self._record_history(u, b))
+        browser.loadFinished.connect(
+            lambda ok, b=browser: self._update_nav_buttons(b))
+        
+        return page
+
     # ==================== НАВИГАЦИЯ ====================
 
     def go_back(self) -> None:

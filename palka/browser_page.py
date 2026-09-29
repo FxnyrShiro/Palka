@@ -96,3 +96,28 @@ class MicroPage(QWebEnginePage):
         # Не блокируем самоподписанные сертификаты (для отладки)
         print(f"[TLS] {error.description()}", flush=True)
         return True
+
+    def createWindow(self, window_type):
+        """
+        Вызывается, когда сайт просит открыть новое окно/вкладку
+        (target="_blank", window.open() и т.п.).
+        
+        Мы создаём новую вкладку в главном окне и возвращаем её страницу,
+        чтобы QtWebEngine продолжил загрузку URL именно туда.
+        """
+        # Импорт внутри метода, чтобы избежать циклической зависимости
+        from .browser_window import MiniBrowser
+        
+        # Находим главное окно, поднимаясь по цепочке родителей
+        parent = self.parent()
+        while parent is not None and not isinstance(parent, MiniBrowser):
+            parent = parent.parent()
+        
+        if not isinstance(parent, MiniBrowser):
+            # Если главное окно не найдено — возвращаем None,
+            # и QtWebEngine откроет ссылку в текущей вкладке.
+            return None
+        
+        # Создаём новую вкладку с пустым URL (URL подставит сам движок)
+        new_page = parent.add_new_tab_for_link()
+        return new_page
