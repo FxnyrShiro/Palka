@@ -29,9 +29,11 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--disable-features=CalculateNativeWinOcclusion,OverlayScrollbar "
     "--enable-smooth-scrolling "  # Вот этот флаг отвечает за плавность
     "--enable-gpu-rasterization "
-    "--enable-oop-rasterization " # Отключите, если скроллинг идет "рывками"
+#    "--enable-oop-rasterization " # Отключите, если скроллинг идет "рывками"
     "--ignore-gpu-blocklist "
     "--num-raster-threads=4 "
+    "--disable-gpu-vsync "
+
 )
 
 __version__ = "0.1.0"
