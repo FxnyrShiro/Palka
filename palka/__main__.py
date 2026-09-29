@@ -17,6 +17,10 @@ def main():
     apply_dark_app_theme()
 
     window = MiniBrowser()
+    if len(sys.argv) > 1:
+        arg = sys.argv[-1]
+        if arg.startswith(("http://", "https://", "file://")):
+            window.add_new_tab(QUrl(arg), "Открыть")
     window.show()
     sys.exit(app.exec())
 
