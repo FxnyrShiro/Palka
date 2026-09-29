@@ -1,5 +1,5 @@
 """
-Micro Browser — кастомный браузер на QtWebEngine.
+Palka — кастомный браузер на QtWebEngine.
 
 Пакет разбит на модули:
   constants       — цвета, шрифты, константы
@@ -22,15 +22,16 @@ import os
 # Chromium flags — должны быть установлены ДО импорта PyQt6.QtWebEngineCore.
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--enable-experimental-web-platform-features "
-    "--enable-features=WebAssembly,WebRtcAllowInputVolumeAdjustment,SmoothScrolling "
+    "--enable-features=WebAssembly,WebRtcAllowInputVolumeAdjustment "  # Убрали SmoothScrolling отсюда
     "--disable-background-timer-throttling "
     "--disable-backgrounding-occluded-windows "
     "--disable-renderer-backgrounding "
     "--disable-features=CalculateNativeWinOcclusion,OverlayScrollbar "
-    "--enable-smooth-scrolling "
+    "--enable-smooth-scrolling "  # Вот этот флаг отвечает за плавность
     "--enable-gpu-rasterization "
-    "--enable-oop-rasterization "
-    "--ignore-gpu-blocklist"
+    "--enable-oop-rasterization " # Отключите, если скроллинг идет "рывками"
+    "--ignore-gpu-blocklist "
+    "--num-raster-threads=4 "
 )
 
 __version__ = "0.1.0"

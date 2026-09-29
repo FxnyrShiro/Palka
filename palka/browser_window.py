@@ -611,9 +611,13 @@ class MiniBrowser(QMainWindow):
         n = self.tab_bar.count()
         self.tab_bar.setCurrentIndex((self.tab_bar.currentIndex() - 1) % n)
 
-    def navigate_to_url(self) -> None:
-        url = self.url_bar.text()
-        if not url.startswith(("http", "view-source:")):
+    def navigate_to_url(self):
+        url = self.url_bar.text().strip()
+        # Не трогаем URL со своими схемами
+        special_schemes = ("http://", "https://", "chrome://",
+                           "about:", "file://", "view-source:",
+                           "data:", "blob:")
+        if not url.startswith(special_schemes):
             url = "https://" + url
         b = self.stack.currentWidget()
         if b:
