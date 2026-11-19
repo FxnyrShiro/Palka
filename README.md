@@ -2,79 +2,65 @@
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Made with PyQt6](https://img.shields.io/badge/Made%20with-PyQt6-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
-![vibe-coded](https://img.shields.io/badge/code-vibe--coded-b388ff?style=flat-square)
-![status](https://img.shields.io/badge/status-works%20on%20my%20machine-00ffaa?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-linux-lightgrey)
+![Status](https://img.shields.io/badge/status-active-brightgreen)
 
-> Минималистичный браузер на PyQt6/QtWebEngine с поддержкой **WebUSB**,
+> Минималистичный браузер на PyQt6/QtWebEngine с кастомной поддержкой **WebUSB**,
 > достаточной для прошивки Nintendo Switch через [WebRCM][webrcm].
 
-Задумывался как ответ на простую проблему: Firefox не поддерживает WebUSB,
-Chromium в Gentoo объявили deprecated, а ставить бинарный Chrome не хочется.
-Вот и появился этот велосипед.
+Проект создан как альтернатива для сред, где нет удобного доступа к Chromium: 
+Firefox не поддерживает WebUSB, а сборка бинарного Chrome в некоторых 
+дистрибутивах (например, Gentoo) нецелесообразна. Решает специфическую 
+задачу — запуск WebRCM без нативного браузера.
 
 [webrcm]: https://reubenjds.github.io/webrcm/
 
 ---
 
-> ⚠️ **Дисклеймер:** этот код написан в режиме «вайб-кодинга» — с
-> помощью LLM, методом проб и ошибок, без тестов и code review.
-> Работает — но не удивляйтесь странным решениям. Подробности
-> в разделе [«О качестве кода»](#о-качестве-кода).
+## Ключевые особенности
+
+- **WebUSB через `navigator.usb`** — реализован как кастомный шим поверх 
+  системных вызовов `USBDEVFS_SUBMITURB` + `DISCARDURB`. Позволяет обходить 
+  лимит libusb в 4096 байт для триггера эксплойта Fusée Gelée. 
+  *Примечание: реализация заточена под WebRCM и не является универсальным WebUSB.*
+- **Менеджер паролей** с автозаполнением. Поддерживает сложные SPA-логины 
+  (Google, Reddit и др.), где поля email и пароля находятся на разных экранах, 
+  за счет перехвата `history.pushState` и `MutationObserver`.
+- **Закладки, история, загрузки** — с кастомной панелью прогресса.
+- **Кастомный UI** — мятно-лавандовая палитра, стилизованный tab bar.
+- **Управление окном** — `F11` для полноэкранного режима (с корректной обработкой 
+  fullscreen-запросов от YouTube/Twitch).
+- **DevTools, поиск, зум, экспорт в PDF, `view-source:`**
+
+## Технические ограничения
+
+- **Архитектура Linux:** используется прямой `ioctl` к `/dev/bus/usb/`, поэтому 
+  проект работает только на Linux.
+- **Расширения Chromium:** не поддерживаются из-за ограничений QtWebEngine.
+- **WebUSB:** реализован только для профиля WebRCM. Теоретически обобщается 
+  на другие устройства, но требует доработки `_on_control_transfer_in`.
 
 ---
 
-## Возможности
+## Требования и установка
 
-- **WebUSB через `navigator.usb`** — реализован как шим поверх
-  `USBDEVFS_SUBMITURB` + `DISCARDURB` (обход лимита libusb в 4096 байт).
-  **Внимание:** это не полноценный WebUSB, а хак, заточенный под
-  конкретный сценарий WebRCM. Работает — но не ждите, что заведётся
-  любое другое WebUSB-устройство.
-- **Менеджер паролей** с автозаполнением, включая SPA-логины (Google,
-  Reddit и прочие, где email и пароль на разных экранах)
-- **Закладки, история, загрузки** — с выпадающей панелью прогресса
-- **Кастомный UI** — мятно-лавандовая палитра, стилизованный tab bar
-- **Fullscreen** — `F11` для окна, отдельная обработка fullscreen
-  от страницы (YouTube, Twitch — панели скрываются)
-- **DevTools, поиск, зум, печать в PDF, `view-source:`**
-
-## Чего не умеет
-
-- **Расширений Chromium** — QtWebEngine их не поддерживает
-- **Синхронизации и аккаунтов** — по понятным причинам
-- **Тёмной темы для сайтов «из коробки»** — см. «Известные ограничения»
-- **Работать не на Linux** — используется `ioctl` к `/dev/bus/usb/`
-
----
-
-## Требования
-
-- Linux
+- Linux (X11 или Wayland)
 - Python 3.11+
 - `PyQt6`, `PyQt6-WebEngine`, `pyusb`, `QtWebEngine`
 
-## Установка
-
-### 1. Зависимости
-
+### 1. Зависимости (пример для Gentoo)
 ```bash
-# Gentoo
 emerge --ask dev-python/pyqt6 dev-python/pyqt6-webengine dev-python/pyusb dev-qt/qtwebengine
 ```
 
-### 2. Настройка для WebUSB
-
-Увеличить лимит usbfs (сбрасывается при перезагрузке):
-
+### 2. Настройка окружения
+Для работы WebUSB необходимо увеличить лимит usbfs (сбрасывается при перезагрузке):
 ```bash
 echo 1000 | sudo tee /sys/module/usbcore/parameters/usbfs_memory_mb
 ```
+*(Для постоянного применения добавьте параметр в `/etc/sysctl.d/`)*
 
-Для постоянного применения добавь в `/etc/sysctl.d/` или в init-скрипт —
-зависит от системы.
-
-udev-правило для Nintendo Switch в RCM:
-
+Добавьте udev-правило для Nintendo Switch в RCM:
 ```bash
 echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0955", ATTR{idProduct}=="7321", MODE="0666", TAG+="uaccess"' \
   | sudo tee /etc/udev/rules.d/50-nintendo-switch.rules
@@ -82,120 +68,47 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 ### 3. Запуск
-
 ```bash
 ./browser.sh
 ```
 
 ---
 
-## Горячие клавиши
+## Детали реализации WebUSB-триггера
 
-| Клавиши | Действие |
-|---------|----------|
-| `Ctrl+T` | Новая вкладка |
-| `Ctrl+W` | Закрыть вкладку |
-| `Ctrl+Shift+T` | Вернуть закрытую |
-| `Ctrl+L` | Фокус в адресную строку |
-| `Ctrl+F` | Поиск по странице |
-| `Ctrl+H` | Менеджер (закладки, история, пароли) |
-| `Ctrl+J` | Загрузки |
-| `Ctrl+D` | Добавить в закладки |
-| `F11` | Полный экран |
-| `F12` / `Ctrl+Shift+I` | DevTools |
-| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Зум |
-| `Ctrl+P` | Печать в PDF |
-| `Ctrl+U` | Просмотр кода страницы |
+Эксплойт Fusée Gelée (Tegra X1) требует отправки control-трансфера с `wLength=0x7000` (28672 байт). Стандартный `pyusb.ctrl_transfer` не способен на это, так как libusb ограничивает размер буфера константой `MAX_CTRL_BUFFER_LENGTH = 4096`.
+
+Для обхода ограничения используется прямая работа с URB (USB Request Block) через `ioctl` к ноду `/dev/bus/usb/`:
+
+1. **`USBDEVFS_SUBMITURB`** — setup-пакет ставится в очередь контроллера.
+2. **Задержка 1 мс** — setup успевает уйти на устройство, но URB еще не завершается (при 5 мс discard вернет `EINVAL`, при 0 мс setup не успеет уйти).
+3. **`USBDEVFS_DISCARDURB`** — отмена URB до завершения, что и вызывает переполнение стека в bootROM Tegra.
+
+*Данный подход был воспроизведен на основе анализа поведения Google Chrome через `strace` (Chrome делает то же самое, но через libusb в двух процессах).*
 
 ---
 
-## Как работает WebUSB-триггер
+## Известные ограничения и Research
 
-Fusée Gelée (эксплойт Tegra X1) требует отправки control-трансфера
-`wLength=0x7000` (28672 байт). Стандартный `pyusb.ctrl_transfer`
-не может этого сделать — libusb режет по
-`MAX_CTRL_BUFFER_LENGTH = 4096`.
+### Ограничение FPS в QtWebEngine (60 Hz)
+На мониторах 120/144/180 Hz QtWebEngine упирается в 60 FPS, в отличие от нативного Chrome. 
 
-Решение — обход libusb и прямой `ioctl` к ноду `/dev/bus/usb/`:
+**Результаты исследования:**
+- `QScreen.refreshRate()` возвращает корректные 179.99 Hz.
+- Чистый QML без WebEngine рендерит 200 FPS.
+- Отключение VSYNC (`QSG_NO_VSYNC=1`), `vblank_mode=0` и флаги Chromium (`--disable-gpu-vsync`) не снимают ограничение.
 
-1. **`USBDEVFS_SUBMITURB`** — setup-пакет уходит в очередь контроллера
-2. **Пауза 1 мс** — setup успевает уйти на устройство, но URB ещё не
-   завершается
-   - с 5 мс URB успевает завершиться, discard получает `EINVAL`
-   - с 0 мс setup не успевает уйти на устройство
-3. **`USBDEVFS_DISCARDURB`** — отмена URB до завершения, что и триггерит
-   переполнение стека в bootROM Tegra
-
-Плюс нужен `usbfs_memory_mb >= 32` в параметрах ядра.
-
-Этот подход подсмотрен в `strace` от Google Chrome, который делает то же
-самое через libusb, но с двух процессов (submit в одном, discard в другом).
-
-**Никаких ZLP** между чанками bulk-трансфера — Chrome их тоже не шлёт.
-Сначала мы отправляли 45 лишних пустых пакетов, и Tegra их не понимала.
-
----
-
-## Известные ограничения
+**Причина:** Chromium-композитор внутри QtWebEngine не получает корректный vsync-сигнал выше 60 Hz. Каждый кадр проходит через `RenderWidgetHostViewQtDelegate` и дефолтится к 60 Hz `viz::BeginFrameSource`, в то время как нативный Chrome использует прямой Ozone/Wayland-путь с dmabuf. 
+*Решение:* Требуется патч исходников QtWebEngine (5–10 строк в `render_widget_host_view_qt_delegate_quick.cpp`) и пересборка.
 
 ### Тёмная тема сайтов
-
-QtWebEngine в текущей сборке не поддерживает
-`QWebEngineProfile.setColorScheme()`. Мы пытались форсить
-`prefers-color-scheme` через JS-инъекцию, но это ломало hCaptcha —
-антибот детектит override `window.matchMedia`.
-
-**Решение:** переключай тёмную тему в настройках каждого сайта вручную.
-Google, YouTube, GitHub — у всех есть свой тумблер.
-
-### FPS ограничен 60
-
-На системах с мониторами 120/144/180 Hz QtWebEngine упирается в 60 FPS,
-хотя нативный Chrome на той же системе выдаёт 130+. Для видео разницы
-нет (источник всё равно 60), но скролл и CSS-анимации идут на 60
-вместо реальной частоты монитора.
-
-**Что было проверено:**
-
-- `QScreen.refreshRate()` возвращает правильные 179.99 Hz — Qt видит
-  реальную частоту.
-- Чистый QML без WebEngine рендерит 200 FPS — Qt Quick сам по себе
-  не ограничен.
-- QtWebEngine в QML — 60 FPS. QtWebEngine в QWidget — 60 FPS.
-- `QSG_NO_VSYNC=1`, `QSG_RENDER_LOOP=basic`,
-  `QSG_USE_SIMPLE_ANIMATION_DRIVER=1`, `vblank_mode=0`,
-  `QSurfaceFormat.setSwapInterval(0)` — не помогают.
-- `--disable-gpu-vsync` + `--disable-frame-rate-limit` — снимают
-  рывки, но ломают воспроизведение YouTube. Кэп при этом остаётся.
-- Wayland и Xwayland — одинаковый результат.
-
-**Причина:** Chromium-композитор внутри QtWebEngine не получает от
-Qt Quick корректный vsync-сигнал на частоте выше 60 Hz. Каждый кадр
-проходит через `RenderWidgetHostViewQtDelegate` и дефолтится к
-60 Hz `viz::BeginFrameSource`, независимо от того, что монитор
-работает на 144/180 Hz. В нативном Chrome используется прямой
-Ozone/Wayland-путь с dmabuf, минуя Qt — отсюда разница.
-
-**Решение:** ждать апстрим-фикс в QtWebEngine. Патч возможен (5–10
-строк в `render_widget_host_view_qt_delegate_quick.cpp`), но требует
-дня-двух чтения исходников и пересборки QtWebEngine, что окупается
-только если ты хочешь именно это.
-
-**Что можно сделать сейчас:** ничего. 60 FPS стабильны и без рывков —
-для чтения, почты, работы этого достаточно. Единственный сценарий,
-где разница реально заметна — если поставить рядом окно нативного
-Chrome и скроллить синхронно.
-
-### WebUSB только для WebRCM
-
-Теоретически можно обобщить на другие устройства, но требует доработки
-`_on_control_transfer_in` под конкретные сценарии.
+Текущая сборка QtWebEngine не поддерживает `QWebEngineProfile.setColorScheme()`. Форсирование `prefers-color-scheme` через JS-инъекцию ломает работу hCaptcha (антибот детектит override `window.matchMedia`). *Решение:* переключение темной темы на уровне самих сайтов.
 
 ---
 
-## Структура
+## Архитектура проекта
 
-```
+```text
 palka/
 ├── __init__.py         # переменные окружения Chromium
 ├── __main__.py         # точка входа
@@ -207,64 +120,24 @@ palka/
 ├── passwords.py        # менеджер паролей
 ├── bookmarks.py        # закладки
 ├── history.py          # история
-├── downloads.py        # загрузки + всплывающая панель
+├── downloads.py        # загрузки
 ├── managers_ui.py      # диалог менеджера
 ├── permissions.py      # диалог разрешений
-├── usb_bridge.py       # WebUSB (SUBMITURB + DISCARDURB)
+├── usb_bridge.py       # Ядро WebUSB-шима (SUBMITURB + DISCARDURB)
 ├── browser_page.py     # QWebEnginePage с инжектами
 ├── browser_window.py   # главное окно
 └── js/
-    ├── __init__.py
-    ├── passwords.js          # автозаполнение
-    └── webusb_shim.js        # шим navigator.usb
+    ├── passwords.js    # автозаполнение (SPA-логины)
+    └── webusb_shim.js  # шим navigator.usb
 ```
 
 ---
 
----
+## Roadmap (Планы по развитию)
 
-## О качестве кода
-
-Этот проект — продукт **вайб-кодинга**. Что это значит на практике:
-
-- **Написан совместно с LLM**, без предварительного
-  проектирования. Сначала пробовали одно, потом другое, что-то
-  откатывали, что-то оставляли. История коммитов это покажет.
-- **Тестов нет.** Совсем. Есть только метод «запустил — работает».
-- **Code review не было.** Единственный ревьюер — автор и его
-  терпение.
-- **Некоторые решения — костыли**, продиктованные не архитектурой,
-  а «вот тут оно наконец заработало, не трогай».
-- **Документация внутри кода минимальная**, только для самых
-  неочевидных мест.
-
-### Где особенно заметно
-
-- **`usb_bridge.py`** — весь модуль построен на реверс-инжиниринге
-  поведения Chrome через `strace`. Комментарии там — это не описание
-  замысла, а описание того, что мы *увидели*. Часть кода может
-  содержать магические числа, значение которых известно только
-  конкретному набору ядро+libusb+Switch.
-- **`js/passwords.js`** — SPA-логины обрабатываются через кучу
-  эвристик: `MutationObserver`, `history.pushState` override,
-  `sessionStorage` для запоминания username между экранами.
-  Это работает, но легко ломается на новых сайтах.
-- **`downloads.py`** — обход того, что Qt 6 переименовал
-  `finished` в `stateChanged`, и что сигналы приходят в
-  произвольном порядке.
-
-### Что это значит для вас
-
-**Если вы просто хотите запустить:** всё нормально, скорее всего
-заработает. Проблемы — только у конкретных сайтов с WebUSB.
-
-**Если хотите форкнуть и доработать:** добро пожаловать, но будьте
-готовы, что некоторые места потребуется переписать. Не стесняйтесь
-ломать существующие решения — многие из них не выдерживают
-критики.
-
-**Если хотите использовать в продакшене:** не надо. Возьмите
-`qutebrowser`, `falkon` или соберите Chromium сами.
+- [ ] Покрытие ключевых модулей (`storage`, `usb_bridge`) unit-тестами.
+- [ ] Рефакторинг `usb_bridge.py` для поддержки произвольных WebUSB-устройств.
+- [ ] Изучение возможности применения патча для снятия лимита 60 FPS в QtWebEngine.
 
 ---
 
@@ -274,7 +147,6 @@ palka/
 
 ## Благодарности
 
-- [WebRCM][webrcm] — за сайт прошивки
-- [fusee-launcher](https://github.com/ktemkin/fusee-launcher) — за
-  понимание протокола Tegra RCM
+- [WebRCM][webrcm] — за логику прошивки
+- [fusee-launcher](https://github.com/ktemkin/fusee-launcher) — за понимание протокола Tegra RCM
 - [Qt](https://www.qt.io/) и [Chromium](https://www.chromium.org/) — за движок
